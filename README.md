@@ -1,4 +1,4 @@
-# bird-socket
+# bird_socket
 [![Build Status](https://travis-ci.org/czerwonk/bird_socket.svg)][travis]
 [![Go Report Card](https://goreportcard.com/badge/github.com/czerwonk/bird_socket)][goreportcard]
 
