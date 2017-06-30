@@ -1,4 +1,4 @@
-package main
+package bird_socket
 
 import (
 	"net"
