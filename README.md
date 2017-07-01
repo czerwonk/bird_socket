@@ -1,6 +1,8 @@
 # bird_socket
-[![Build Status](https://travis-ci.org/czerwonk/bird_socket.svg)][travis]
-[![Go Report Card](https://goreportcard.com/badge/github.com/czerwonk/bird_socket)][goreportcard]
+[![GoDoc](https://godoc.org/github.com/czerwonk/bird_socket?status.svg)](https://godoc.org/github.com/czerwonk/bird_socket)
+[![Build Status](https://travis-ci.org/czerwonk/bird_socket.svg)][travis](https://travis-ci.org/czerwonk/bird_socket)
+[![Go Report Card](https://goreportcard.com/badge/github.com/czerwonk/bird_socket)][goreportcard](https://goreportcard.com/report/github.com/czerwonk/bird_socket)
+[![Sourcegraph](https://sourcegraph.com/github.com/czerwonk/bird_socket/-/badge.svg)](https://sourcegraph.com/github.com/czerwonk/bird_socket?badge)
 
 Golang library to communicate with Bird routing daemon
 
@@ -9,6 +11,3 @@ Golang library to communicate with Bird routing daemon
 
 ## Bird routing daemon
 see http://bird.network.cz/
-
-[travis]: https://travis-ci.org/czerwonk/bird_socket
-[goreportcard]: https://goreportcard.com/report/github.com/czerwonk/bird_socket
