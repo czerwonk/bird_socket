@@ -61,7 +61,7 @@ func (s *BirdSocket) Close() {
 	}
 }
 
-// Query send an query to Bird and waits for the reply
+// Query sends an query to Bird and waits for the reply
 func (s *BirdSocket) Query(qry string) ([]byte, error) {
 	_, err := s.conn.Write([]byte(strings.Trim(qry, "\n") + "\n"))
 	if err != nil {
