@@ -14,15 +14,30 @@ func init() {
 
 // BirdSocket encapsulates communication with Bird routing daemon
 type BirdSocket struct {
-	SocketPath string
-	BufferSize int
-	Timeout    int
+	socketPath string
+	bufferSize int
 	conn       net.Conn
 }
 
+// BirdSocketOption applies options to BirdSocket
+type Option func(*BirdSocket)
+
+// WithBufferSize sets the buffer size for BirdSocket
+func WithBufferSize(bufferSize int) Option {
+	return func(s *BirdSocket) {
+		s.bufferSize = bufferSize
+	}
+}
+
 // NewSocket creates a new socket
-func NewSocket(socketPath string) *BirdSocket {
-	return &BirdSocket{SocketPath: socketPath, BufferSize: 4096, Timeout: 30}
+func NewSocket(socketPath string, opts ...Option) *BirdSocket {
+	socket := &BirdSocket{socketPath: socketPath, bufferSize: 4096}
+
+	for _, o := range opts {
+		o(socket)
+	}
+
+	return socket
 }
 
 // Query sends an ad hoc query to Bird and waits for the reply
@@ -40,12 +55,12 @@ func Query(socketPath, qry string) ([]byte, error) {
 // Connect connects to the Bird unix socket
 func (s *BirdSocket) Connect() ([]byte, error) {
 	var err error
-	s.conn, err = net.Dial("unix", s.SocketPath)
+	s.conn, err = net.Dial("unix", s.socketPath)
 	if err != nil {
 		return nil, err
 	}
 
-	buf := make([]byte, s.BufferSize)
+	buf := make([]byte, s.bufferSize)
 	n, err := s.conn.Read(buf[:])
 	if err != nil {
 		return nil, err
@@ -78,7 +93,7 @@ func (s *BirdSocket) Query(qry string) ([]byte, error) {
 
 func (s *BirdSocket) readFromSocket(conn net.Conn) ([]byte, error) {
 	b := make([]byte, 0)
-	buf := make([]byte, s.BufferSize)
+	buf := make([]byte, s.bufferSize)
 
 	done := false
 	for !done {
