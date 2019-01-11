@@ -1,6 +1,7 @@
 package birdsocket
 
 import (
+	"bytes"
 	"net"
 	"regexp"
 	"strings"
@@ -9,7 +10,13 @@ import (
 var birdReturnCodeRegex *regexp.Regexp
 
 func init() {
-	birdReturnCodeRegex = regexp.MustCompile("\\d{4} \n$")
+	// Requests are commands encoded as a single line of text,
+	// replies are sequences of lines starting with a four-digit code
+	// followed by either a space (if it's the last line of the reply)
+	// or a minus sign (when the reply is going to continue with the next line),
+	// the rest of the line contains a textual message semantics of which depends
+	// on the numeric code.
+	birdReturnCodeRegex = regexp.MustCompile(`(?m)^(\d{4})`)
 }
 
 // BirdSocket encapsulates communication with Bird routing daemon
@@ -103,16 +110,20 @@ func (s *BirdSocket) readFromSocket(conn net.Conn) ([]byte, error) {
 		}
 
 		b = append(b, buf[:n]...)
-		done = endsWithBirdReturnCode(b)
+		done = containsActionCompletedCode(b)
 	}
 
 	return b, nil
 }
 
-func endsWithBirdReturnCode(b []byte) bool {
-	if len(b) < 6 {
-		return false
+func containsActionCompletedCode(b []byte) bool {
+	codes := birdReturnCodeRegex.FindAll(b, -1)
+	for _, c := range codes {
+		// Reply codes starting with 0 stand for
+		// `action successfully completed' messages
+		if bytes.HasPrefix(c, []byte("0")) {
+			return true
+		}
 	}
-
-	return birdReturnCodeRegex.Match(b[len(b)-6:])
+	return false
 }
