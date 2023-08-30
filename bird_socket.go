@@ -1,7 +1,6 @@
 package birdsocket
 
 import (
-	"bytes"
 	"net"
 	"regexp"
 	"strings"
@@ -16,7 +15,9 @@ func init() {
 	// or a minus sign (when the reply is going to continue with the next line),
 	// the rest of the line contains a textual message semantics of which depends
 	// on the numeric code.
-	birdReturnCodeRegex = regexp.MustCompile(`(?m)^(\d{4})`)
+
+	// https://gitlab.nic.cz/labs/bird/-/blob/master/doc/reply_codes
+	birdReturnCodeRegex = regexp.MustCompile(`(?m)^([089]\d{3})`)
 }
 
 // BirdSocket encapsulates communication with Bird routing daemon
@@ -110,20 +111,12 @@ func (s *BirdSocket) readFromSocket(conn net.Conn) ([]byte, error) {
 		}
 
 		b = append(b, buf[:n]...)
-		done = containsActionCompletedCode(b)
+		done = containsActionCompletedCode(buf[:n])
 	}
 
 	return b, nil
 }
 
 func containsActionCompletedCode(b []byte) bool {
-	codes := birdReturnCodeRegex.FindAll(b, -1)
-	for _, c := range codes {
-		// Reply codes starting with 0 stand for
-		// `action successfully completed' messages
-		if bytes.HasPrefix(c, []byte("0")) {
-			return true
-		}
-	}
-	return false
+	return birdReturnCodeRegex.Match(b)
 }
