@@ -108,3 +108,20 @@ func TestTruncatedBirdShowStatus(t *testing.T) {
 
 	assert.True("'show status' successfully completed", completed, t)
 }
+
+func TestExitCodes(t *testing.T) {
+	testCases := []struct {
+		out string
+	}{
+		{
+			out: "9000 Command too long",
+		},
+		{
+			out: "8000 Reply too long",
+		},
+	}
+	for _, tc := range testCases {
+		completed := containsActionCompletedCode([]byte(tc.out))
+		assert.True("exit codes completed", completed, t)
+	}
+}
