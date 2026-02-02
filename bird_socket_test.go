@@ -3,7 +3,7 @@ package birdsocket
 import (
 	"testing"
 
-	"github.com/czerwonk/testutils/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestBirdSocketConnection simulate a scenario in
@@ -14,7 +14,7 @@ func TestBirdSocketConnection(t *testing.T) {
 	out := "0001 BIRD 1.6.4 ready.\n"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.True("'connect' successfully completed", completed, t)
+	assert.True(t, completed, "'connect' successfully completed")
 }
 
 // TestBirdShowProtocols simulate a scenario in which
@@ -30,7 +30,7 @@ func TestBirdShowProtocols(t *testing.T) {
 		"0000\n"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.True("'show protocols' successfully completed", completed, t)
+	assert.True(t, completed, "'show protocols' successfully completed")
 }
 
 // TestIncompleteBirdShowProtocols simulate a scenario in which
@@ -43,7 +43,7 @@ func TestIncompleteBirdShowProtocols(t *testing.T) {
 		" kernel1  Kernel   master   up     2018-12-21 12:35:11\n"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.False("'show protocols' successfully completed", completed, t)
+	assert.False(t, completed, "'show protocols' successfully completed")
 }
 
 // TestTruncatedBirdShowProtocols simulate a scenario in which
@@ -61,7 +61,7 @@ func TestTruncatedBirdShowProtocols(t *testing.T) {
 		"0000"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.True("'show protocols' successfully completed", completed, t)
+	assert.True(t, completed, "'show protocols' successfully completed")
 }
 
 // TestBirdShowStatus simulate a scenario in which
@@ -76,7 +76,7 @@ func TestBirdShowStatus(t *testing.T) {
 		"0013 Daemon is up and running\n"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.True("'show status' successfully completed", completed, t)
+	assert.True(t, completed, "'show status' successfully completed")
 }
 
 // TestIncompleteBirdShowStatus simulate a scenario in which
@@ -89,7 +89,7 @@ func TestIncompleteBirdShowStatus(t *testing.T) {
 		" Last reboot on 2018-12-21 12:35:11\n"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.False("'show status' successfully completed", completed, t)
+	assert.False(t, completed, "'show status' successfully completed")
 }
 
 // TestTruncatedBirdShowStatus simulate a scenario in which
@@ -106,7 +106,7 @@ func TestTruncatedBirdShowStatus(t *testing.T) {
 		"0013 Daemon is up and running"
 	completed := containsActionCompletedCode([]byte(out))
 
-	assert.True("'show status' successfully completed", completed, t)
+	assert.True(t, completed, "'show status' successfully completed")
 }
 
 func TestExitCodes(t *testing.T) {
@@ -122,6 +122,6 @@ func TestExitCodes(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		completed := containsActionCompletedCode([]byte(tc.out))
-		assert.True("exit codes completed", completed, t)
+		assert.True(t, completed, "exit codes completed")
 	}
 }
