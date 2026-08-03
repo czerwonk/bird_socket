@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -145,6 +146,61 @@ func TestQueryContextCancellation(t *testing.T) {
 	wait()
 }
 
+func TestConnectedQueryClosesDesynchronizedConnection(t *testing.T) {
+	path, wait := startUnixServer(t, []string{"2002-incomplete\n"}, true)
+	socket := NewSocket(path, WithTimeout(time.Second))
+
+	_, err := socket.ConnectContext(context.Background())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	_, err = socket.QueryContext(ctx, "show protocols all")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Nil(t, socket.conn)
+	wait()
+}
+
+func TestQueryRejectsMultipleCommandLines(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() {
+		_ = client.Close()
+		_ = server.Close()
+	})
+	socket := NewSocket("/unused", WithTimeout(time.Second))
+	socket.conn = client
+
+	for _, query := range []string{"", "\n", "show status\nshow protocols", "show\rstatus"} {
+		_, err := socket.QueryContext(context.Background(), query)
+		require.ErrorIs(t, err, ErrInvalidQuery)
+	}
+}
+
+func TestWatchContextClearsDeadlineAfterConcurrentCancellation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	conn := &controlledDeadlineConn{
+		callbackStarted: make(chan struct{}),
+		allowCallback:   make(chan struct{}),
+	}
+	stop, err := watchContext(ctx, conn)
+	require.NoError(t, err)
+
+	cancel()
+	<-conn.callbackStarted
+	stopDone := make(chan struct{})
+	go func() {
+		stop()
+		close(stopDone)
+	}()
+	close(conn.allowCallback)
+	<-stopDone
+
+	conn.mu.Lock()
+	lastDeadline := conn.lastDeadline
+	conn.mu.Unlock()
+	assert.True(t, lastDeadline.IsZero(), "deadline cleanup must win over cancellation callback")
+}
+
 func TestQueryRequiresConnection(t *testing.T) {
 	socket := NewSocket("/does/not/matter")
 	_, err := socket.Query("show status")
@@ -169,6 +225,39 @@ func TestInvalidOptions(t *testing.T) {
 		})
 	}
 }
+
+type controlledDeadlineConn struct {
+	mu              sync.Mutex
+	calls           int
+	lastDeadline    time.Time
+	callbackStarted chan struct{}
+	allowCallback   chan struct{}
+}
+
+func (c *controlledDeadlineConn) SetDeadline(deadline time.Time) error {
+	c.mu.Lock()
+	c.calls++
+	call := c.calls
+	c.mu.Unlock()
+
+	if call == 2 {
+		close(c.callbackStarted)
+		<-c.allowCallback
+	}
+
+	c.mu.Lock()
+	c.lastDeadline = deadline
+	c.mu.Unlock()
+	return nil
+}
+
+func (*controlledDeadlineConn) Read([]byte) (int, error)         { return 0, errors.New("unused") }
+func (*controlledDeadlineConn) Write([]byte) (int, error)        { return 0, errors.New("unused") }
+func (*controlledDeadlineConn) Close() error                     { return nil }
+func (*controlledDeadlineConn) LocalAddr() net.Addr              { return nil }
+func (*controlledDeadlineConn) RemoteAddr() net.Addr             { return nil }
+func (*controlledDeadlineConn) SetReadDeadline(time.Time) error  { return nil }
+func (*controlledDeadlineConn) SetWriteDeadline(time.Time) error { return nil }
 
 func startUnixServer(t *testing.T, responseChunks []string, holdOpen bool) (string, func()) {
 	t.Helper()

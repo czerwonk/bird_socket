@@ -23,6 +23,8 @@ var (
 	ErrNotConnected = errors.New("bird socket is not connected")
 	// ErrResponseTooLarge is returned before a response can exceed the configured limit.
 	ErrResponseTooLarge = errors.New("bird socket response exceeds configured limit")
+	// ErrInvalidQuery is returned when a query is empty or contains multiple command lines.
+	ErrInvalidQuery = errors.New("bird socket query must contain exactly one command")
 )
 
 // ReplyError represents a terminal BIRD 8xxx or 9xxx reply.
@@ -180,18 +182,41 @@ func (s *BirdSocket) query(ctx context.Context, query string) ([]byte, error) {
 	if s.conn == nil {
 		return nil, ErrNotConnected
 	}
-
-	stop, err := watchContext(ctx, s.conn)
+	command, err := normalizeQuery(query)
 	if err != nil {
 		return nil, err
 	}
-	_, writeErr := io.WriteString(s.conn, strings.TrimRight(query, "\n")+"\n")
+
+	stop, err := watchContext(ctx, s.conn)
+	if err != nil {
+		s.Close()
+		return nil, err
+	}
+	_, writeErr := io.WriteString(s.conn, command)
 	stop()
 	if writeErr != nil {
+		s.Close()
 		return nil, normalizeContextError(ctx, writeErr)
 	}
 
-	return s.readReply(ctx, s.conn)
+	response, queryErr := s.readReply(ctx, s.conn)
+	if queryErr != nil {
+		var replyErr *ReplyError
+		if !errors.As(queryErr, &replyErr) {
+			s.Close()
+		}
+	}
+
+	return response, queryErr
+}
+
+func normalizeQuery(query string) (string, error) {
+	command := strings.TrimRight(query, "\n")
+	if command == "" || strings.ContainsAny(command, "\r\n") {
+		return "", ErrInvalidQuery
+	}
+
+	return command + "\n", nil
 }
 
 func (s *BirdSocket) readReply(ctx context.Context, conn net.Conn) ([]byte, error) {
@@ -320,12 +345,16 @@ func watchContext(ctx context.Context, conn net.Conn) (func(), error) {
 		return nil, err
 	}
 
+	callbackDone := make(chan struct{})
 	stopAfterFunc := context.AfterFunc(ctx, func() {
+		defer close(callbackDone)
 		_ = conn.SetDeadline(time.Now())
 	})
 
 	return func() {
-		stopAfterFunc()
+		if !stopAfterFunc() {
+			<-callbackDone
+		}
 		_ = conn.SetDeadline(time.Time{})
 	}, nil
 }
