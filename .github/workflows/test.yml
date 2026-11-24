@@ -1,0 +1,16 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: czerwonk/go-ci/.github/workflows/test.yml@v6
