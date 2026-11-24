@@ -275,7 +275,8 @@ func startUnixServer(t *testing.T, responseChunks []string, holdOpen bool) (stri
 			done <- acceptErr
 			return
 		}
-		defer conn.Close()
+		// Close error is irrelevant: the fake server only serves this test connection.
+		defer func() { _ = conn.Close() }()
 
 		if _, writeErr := conn.Write([]byte("0001 BIRD ready.\n")); writeErr != nil {
 			done <- writeErr
